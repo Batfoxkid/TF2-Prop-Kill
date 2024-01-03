@@ -132,6 +132,24 @@ public void OnMapInit()
 	}
 }
 
+public void OnConfigsExecuted()
+{
+	if(GamemodeEnabled)
+	{
+		ConVar cvar = FindConVar("sv_enablebunnyhopping");
+		if(cvar)
+			cvar.BoolValue = true;
+		
+		cvar = FindConVar("sv_autobunnyhopping");
+		if(cvar)
+			cvar.BoolValue = true;
+		
+		cvar = FindConVar("sv_duckbunnyhopping");
+		if(cvar)
+			cvar.BoolValue = true;
+	}
+}
+
 public void OnMapEnd()
 {
 	if(GamemodeEnabled)
@@ -141,6 +159,18 @@ public void OnMapEnd()
 		CleanEffects();
 		UnhookEvent("teamplay_round_start", RoundStart, EventHookMode_PostNoCopy);
 		UnhookEvent("teamplay_round_win", RoundEnd, EventHookMode_PostNoCopy);
+		
+		ConVar cvar = FindConVar("sv_enablebunnyhopping");
+		if(cvar)
+			cvar.BoolValue = false;
+		
+		cvar = FindConVar("sv_autobunnyhopping");
+		if(cvar)
+			cvar.BoolValue = false;
+		
+		cvar = FindConVar("sv_duckbunnyhopping");
+		if(cvar)
+			cvar.BoolValue = false;
 	}
 }
 
