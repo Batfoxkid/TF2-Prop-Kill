@@ -1,0 +1,48 @@
+"vertexlitgeneric"
+{
+	"$baseTexture" "models/weapons/w_physics/w_physics_sheet2"
+	"$bumpmap" "dev/dev_normal"
+	
+	"$selfillum" "1"
+
+	"$phong" "1"
+	"$lightwarptexture" "models/lightwarps/weapon_lightwarp"
+	"$phongexponent" "32"
+	"$phongboost"	"4"
+	"$phongfresnelranges"	"[.3 0.4 3.5]"
+
+	"$glowcolor" "1"
+	"$cloakPassEnabled" "1"
+	"$yellow" "0"
+	
+	"Proxies"
+	{
+		"invis"
+		{
+		}
+		"ModelGlowColor"
+		{
+			"resultVar" "$glowcolor"
+		}
+		"Equals"
+		{
+			"srcVar1"  "$glowcolor"
+			"resultVar" "$selfillumtint"
+		}
+		"Equals"
+		{
+			"srcVar1"  "$glowcolor"
+			"resultVar" "$color2"
+		}
+		"YellowLevel"
+		{
+			"resultVar" "$yellow"
+		}
+		"Multiply"
+		{
+			"srcVar1" "$color2"
+			"srcVar2" "$yellow"
+			"resultVar" "$color2"
+		}
+	}
+}

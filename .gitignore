@@ -1,0 +1,14 @@
+*.dat
+*.exe
+*.smx
+*.inc
+*.vscode
+*.nut
+*.cache
+*.code-workspace
+[Cc]compiled/
+[Dd]esktop.ini
+[Tt]humbs.db
+!propkill.nut
+!randommaker.nut
+!randomexample.nut
