@@ -53,12 +53,6 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 public void OnPluginStart()
 {
-	LoadTranslations("propkill.phrases");
-	LoadTranslations("common.phrases");
-	LoadTranslations("core.phrases");
-	if(!TranslationPhraseExists("Difficulty Menu"))
-		SetFailState("Translation file \"propkill.phrases\" is outdated");
-
 	ForceEnable = CreateConVar("pk_forceenable", "0", "If to force the gamemode enabled regardless of map", _, true, 0.0, true, 1.0);
 	SpecialRounds = CreateConVar("pk_specialrounds", "0.25", "Special round chance in %", _, true, 0.0, true, 1.00001);
 }
@@ -201,10 +195,12 @@ void CallScriptFunction(const char[] name)
 		if(StrEqual(buffer, "propkill.nut") || StrEqual(buffer, "_temppropkill.nut"))
 		{
 			SetVariantString(name);
-			AcceptEntityInput(entity, "RunScriptCode", entity, entity);
-			break;
+			AcceptEntityInput(entity, "CallScriptFunction", entity, entity);
+			return;
 		}
 	}
+
+	LogError("Could not find VScript hosted entity");
 }
 
 Action SpecialRoundTimer(Handle timer, int anim)
