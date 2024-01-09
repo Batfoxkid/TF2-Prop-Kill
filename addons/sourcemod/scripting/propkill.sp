@@ -4,7 +4,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION			"Alpha"
+#define PLUGIN_VERSION			"DM-Alpha"
 #define PLUGIN_VERSION_REVISION	"custom"
 #define PLUGIN_VERSION_FULL		PLUGIN_VERSION ... "." ... PLUGIN_VERSION_REVISION
 
@@ -32,6 +32,7 @@ enum struct Effect
 ConVar ForceEnable;
 ConVar SpecialRounds;
 ArrayList SpecialEffects;
+ArrayList SpawnConditions;
 bool GamemodeEnabled;
 bool ForceSpecial;
 Function Active1 = INVALID_FUNCTION;
@@ -53,6 +54,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 public void OnPluginStart()
 {
+	SpawnConditions = new ArrayList();
+
 	ForceEnable = CreateConVar("pk_forceenable", "0", "If to force the gamemode enabled regardless of map", _, true, 0.0, true, 1.0);
 	SpecialRounds = CreateConVar("pk_specialrounds", "0.25", "Special round chance in %", _, true, 0.0, true, 1.00001);
 }
@@ -109,6 +112,7 @@ public void OnMapInit()
 	{
 		HookEvent("teamplay_round_start", RoundStart, EventHookMode_PostNoCopy);
 		HookEvent("teamplay_round_win", RoundEnd, EventHookMode_Post);
+		HookEvent("player_spawn", PlayerSpawn, EventHookMode_Post);
 
 		delete SpecialEffects;
 		SpecialEffects = new ArrayList(sizeof(Effect));
@@ -139,11 +143,11 @@ public void OnConfigsExecuted()
 		ConVar cvar = FindConVar("sv_enablebunnyhopping");
 		if(cvar)
 			cvar.BoolValue = true;
-		
+
 		cvar = FindConVar("sv_autobunnyhopping");
 		if(cvar)
 			cvar.BoolValue = true;
-		
+
 		cvar = FindConVar("sv_duckbunnyhopping");
 		if(cvar)
 			cvar.BoolValue = true;
@@ -159,15 +163,16 @@ public void OnMapEnd()
 		CleanEffects();
 		UnhookEvent("teamplay_round_start", RoundStart, EventHookMode_PostNoCopy);
 		UnhookEvent("teamplay_round_win", RoundEnd, EventHookMode_PostNoCopy);
-		
+		UnhookEvent("player_spawn", PlayerSpawn, EventHookMode_Post);
+
 		ConVar cvar = FindConVar("sv_enablebunnyhopping");
 		if(cvar)
 			cvar.BoolValue = false;
-		
+
 		cvar = FindConVar("sv_autobunnyhopping");
 		if(cvar)
 			cvar.BoolValue = false;
-		
+
 		cvar = FindConVar("sv_duckbunnyhopping");
 		if(cvar)
 			cvar.BoolValue = false;
@@ -193,6 +198,19 @@ void RoundEnd(Event event, const char[] name, bool dontBroadcast)
 	CleanEffects();
 }
 
+void PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if(client)
+	{
+		int length = SpawnConditions.Length;
+		for(int i; i < length; i++)
+		{
+			TF2_AddCondition(client, SpawnConditions.Get(i));
+		}
+	}
+}
+
 void CleanEffects()
 {
 	if(Active2 != INVALID_FUNCTION)
@@ -211,6 +229,32 @@ void CleanEffects()
 		Call_Finish();
 
 		Active1 = INVALID_FUNCTION;
+	}
+
+	SpawnConditions.Clear();
+}
+
+void AddSpawnCondition(TFCond cond)
+{
+	SpawnConditions.Push(cond);
+
+	for(int client = 1; client <= MaxClients; client++)
+	{
+		if(IsClientInGame(client) && IsPlayerAlive(client))
+			TF2_AddCondition(client, cond);
+	}
+}
+
+void RemoveSpawnCondition(TFCond cond)
+{
+	int pos = SpawnConditions.FindValue(cond);
+	if(pos != -1)
+		SpawnConditions.Erase(pos);
+
+	for(int client = 1; client <= MaxClients; client++)
+	{
+		if(IsClientInGame(client) && IsPlayerAlive(client))
+			TF2_RemoveCondition(client, cond);
 	}
 }
 
@@ -364,11 +408,11 @@ public void Effect_Invisible(bool enable)
 {
 	if(enable)
 	{
-		for(int client = 1; client <= MaxClients; client++)
-		{
-			if(IsClientInGame(client) && IsPlayerAlive(client))
-				TF2_AddCondition(client, TFCond_StealthedUserBuffFade);
-		}
+		AddSpawnCondition(TFCond_StealthedUserBuffFade);
+	}
+	else
+	{
+		RemoveSpawnCondition(TFCond_StealthedUserBuffFade);
 	}
 }
 
@@ -376,11 +420,11 @@ public void Effect_SmallPlayer(bool enable)
 {
 	if(enable)
 	{
-		for(int client = 1; client <= MaxClients; client++)
-		{
-			if(IsClientInGame(client) && IsPlayerAlive(client))
-				TF2_AddCondition(client, TFCond_HalloweenTiny);
-		}
+		AddSpawnCondition(TFCond_HalloweenTiny);
+	}
+	else
+	{
+		RemoveSpawnCondition(TFCond_HalloweenTiny);
 	}
 }
 
@@ -388,11 +432,11 @@ public void Effect_BigPlayer(bool enable)
 {
 	if(enable)
 	{
-		for(int client = 1; client <= MaxClients; client++)
-		{
-			if(IsClientInGame(client) && IsPlayerAlive(client))
-				TF2_AddCondition(client, TFCond_HalloweenGiant);
-		}
+		AddSpawnCondition(TFCond_HalloweenGiant);
+	}
+	else
+	{
+		RemoveSpawnCondition(TFCond_HalloweenGiant);
 	}
 }
 
@@ -400,11 +444,11 @@ public void Effect_SwimPlayer(bool enable)
 {
 	if(enable)
 	{
-		for(int client = 1; client <= MaxClients; client++)
-		{
-			if(IsClientInGame(client) && IsPlayerAlive(client))
-				TF2_AddCondition(client, TFCond_SwimmingCurse);
-		}
+		AddSpawnCondition(TFCond_SwimmingCurse);
+	}
+	else
+	{
+		RemoveSpawnCondition(TFCond_SwimmingCurse);
 	}
 }
 
@@ -412,10 +456,10 @@ public void Effect_RNGDodge(bool enable)
 {
 	if(enable)
 	{
-		for(int client = 1; client <= MaxClients; client++)
-		{
-			if(IsClientInGame(client) && IsPlayerAlive(client))
-				TF2_AddCondition(client, TFCond_ObscuredSmoke);
-		}
+		AddSpawnCondition(TFCond_ObscuredSmoke);
+	}
+	else
+	{
+		RemoveSpawnCondition(TFCond_ObscuredSmoke);
 	}
 }
