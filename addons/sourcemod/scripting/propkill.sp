@@ -176,6 +176,11 @@ public void OnMapEnd()
 		cvar = FindConVar("sv_duckbunnyhopping");
 		if(cvar)
 			cvar.BoolValue = false;
+
+		if(FileExists("scripts/vscripts/_temppropkill.nut", false))
+		{
+			RenameFile("scripts/vscripts/propkill.nut", "scripts/vscripts/_temppropkill.nut");
+		}
 	}
 }
 
