@@ -1,5 +1,5 @@
 /*
-	Prop Kill DM-Alpha Build by Batfoxkid
+	Prop Kill DM-Beta Build by Batfoxkid
 	Gravity Gun edits by ficool2
 
 	Map Requirements:
@@ -13,22 +13,28 @@
 	- Keep large-scale objects count low (they're power weapons)
 
 	TODO:
-	- Remove ammo packs on death
-	- Ofc add details
+	- Add details
+	- TF2-ify Gravity Gun?
+	- Fake GUI for Scores
 */
 
 // Localization
 ::HINTCONTROL <- "%+attack% LAUNCH OBJECT %+attack2% GRAB OBJECT %+reload% ZAP OBJECT"
 ::WONROUND <- "got the most kills!"
 ::HINTSCOUT <- "Scout runs the fastest and can double jump"
-::HINTSOLDIER <- "Soldier takes less damage from self-inflicted objects"
+::HINTSOLDIER <- "Soldier can rotate objects faster"
 ::HINTPYRO <- "Pyro ignites thrown and zapped objects"
-::HINTDEMOMAN <- "Demoman takes less damage from self-inflicted explosives"
+::HINTDEMOMAN <- "Demoman takes no damage from self-inflicted explosives"
 ::HINTHEAVY <- "Heavy takes less damage from all objects"
 ::HINTENGINEER <- "Engineer can freeze objects by throwing them while rotating"
 ::HINTMEDIC <- "Medic regenerates health quickly"
 ::HINTSNIPER <- "Sniper can zap objects more often"
 ::HINTSPY <- "Spy won't collide with held objects"
+::PLAYINGTO <- "Playing to "
+::FIRST <- "1st: "
+::SECOND <- "2nd: "
+::THIRD <- "3rd: "
+::YOU <- "You: "
 
 // Settings
 local PlayerPickup = false;	// Allow players to pick up each other
@@ -55,6 +61,8 @@ VCLASSHANDS <-	// Gravity Gun viewmodel
     "models/weapons/c_models/c_spy_arms.mdl",
     "models/weapons/c_models/c_engineer_arms.mdl",
 ];
+PlayerKills <- {};
+GameTextEntity <- {};
 
 // Precache
 Convars.SetValue("mp_autoteambalance", "0");	// Not needed to keep teams balanced
@@ -80,7 +88,6 @@ PrecacheSound("weapons/physcannon/physcannon_drop.wav");
 PrecacheSound("weapons/physcannon/hold_loop.wav");
 PrecacheSound("weapons/physcannon/physcannon_tooheavy.wav");
 PrecacheModel("sprites/laserbeam.spr");
-local GameTextEntity = null;
 local GravityGunWorldmodel = PrecacheModel(WGRAVITYGUN);
 local GravityGunViewmodel = PrecacheModel(VGRAVITYGUN);
 HandViewmodel <- [];
@@ -107,11 +114,11 @@ function PlayerThink()
 		// Ghost AOE push
 		local origin = self.GetOrigin();
 		local entity = null;
-		while(entity = Entities.FindByClassnameWithin(entity, "prop_physics*", origin, GhostRange))
+		while(entity = Entities.FindInSphere(entity, origin, GhostRange))
 		{
-			if(PropHeldByPlayer(entity))
+			if(!IsProp(entity)  || PropHeldByPlayer(entity))
 			{
-				// Don't push held props
+				// Don't push non-props or held props
 				continue;
 			}
 
@@ -136,11 +143,12 @@ function PlayerThink()
 		{
 			if(attack2)	// Drop Prop
 			{
+/*
 				if(IsProp(HeldProp))
 				{
 					NetProps.SetPropEntity(HeldProp, "m_hPhysicsAttacker", null);
 				}
-
+*/
 				if(!HeldProp.IsPlayer())
 				{
 					if(HeldProp.GetOwner() == self)
@@ -165,6 +173,7 @@ function PlayerThink()
 		}
 		else
 		{
+/*
 			if(!reload && LastFreeze.IsValid() && LastFreeze != self)
 			{
 				// Remove Engineer frozen prop
@@ -172,7 +181,7 @@ function PlayerThink()
 				NetProps.SetPropInt(LastFreeze, "m_fEffects", 0);
 				LastFreeze = self;
 			}
-
+*/
 			local trace =
 			{
 				start = self.EyePosition(),
@@ -191,7 +200,7 @@ function PlayerThink()
 				if(GetPlayerClass(self) == Constants.ETFClass.TF_CLASS_SNIPER)
 				{
 					// Sniper has a decreased cooldown
-					NetProps.SetPropFloat(self, "m_flNextAttack", Time() + 1.25);
+					NetProps.SetPropFloat(self, "m_flNextAttack", Time() + 0.75);
 				}
 				else
 				{
@@ -278,9 +287,9 @@ function PlayerThink()
 				(buttons & (Constants.FButtons.IN_RELOAD|Constants.FButtons.IN_ATTACK3)))
 			{
 				// Engineer freezes props if holding reload/attack3
-				LastFreeze = HeldProp;
-				EntFireByHandle(LastFreeze, "DisableMotion", "", -1.0, self, self);
-				NetProps.SetPropInt(LastFreeze, "m_fEffects", Constants.FEntityEffects.EF_ITEM_BLINK);
+//				LastFreeze = HeldProp;
+				EntFireByHandle(HeldProp, "DisableMotion", "", -1.0, self, self);
+				NetProps.SetPropInt(HeldProp, "m_fEffects", Constants.FEntityEffects.EF_ITEM_BLINK);
 				self.StopSound("weapons/physcannon/physcannon_pickup.wav");
 				EmitSoundEx(
 				{
@@ -306,14 +315,21 @@ function PlayerThink()
 
 				local swing = Vector(0.0, 0.0, 0.0);
 
+				local speed = SpinSpeed;
+
+				if(GetPlayerClass(self) == Constants.ETFClass.TF_CLASS_SOLDIER)
+				{
+					speed *= 2.5;
+				}
+
 				if(buttons & Constants.FButtons.IN_ATTACK3)
 				{
-					swing.y += SpinSpeed;
+					swing.y += speed;
 				}
 
 				if(buttons & Constants.FButtons.IN_RELOAD)
 				{
-					swing.z -= SpinSpeed;
+					swing.z -= speed;
 				}
 
 				if(!HeldProp.IsPlayer())
@@ -391,14 +407,21 @@ function PlayerThink()
 		{
 			local swing = Vector(0.0, 0.0, 0.0);
 
+			local speed = RotateSpeed;
+
+			if(GetPlayerClass(self) == Constants.ETFClass.TF_CLASS_SOLDIER)
+			{
+				speed *= 2.5;
+			}
+
 			if(buttons & Constants.FButtons.IN_ATTACK3)
 			{
-				swing.y += RotateSpeed;
+				swing.y += speed;
 			}
 
 			if(buttons & Constants.FButtons.IN_RELOAD)
 			{
-				swing.z -= RotateSpeed;
+				swing.z -= speed;
 			}
 
 			HeldProp.SetPhysAngularVelocity(swing);
@@ -459,16 +482,18 @@ function PlayerThink()
 			}
 		}
 
-		if(GameTextEntity == null)
+		local gameText = GetPlayerGameText(self);
+		if(gameText == null)
 		{
 			// Setup entity and kill goal
-			GameTextEntity = SpawnEntityFromTable("game_text",
+			gameText = SpawnEntityFromTable("game_text",
 			{
-				x = 0.0,
-				y = 0.0,
+				x = 0.01,
+				y = 0.01,
 				color = "255 255 255 255",
 				holdtime = 0.5,
-				channel = 1
+				channel = 1,
+				spawnflags = 0
 			});
 
 			// Setup cvars
@@ -486,15 +511,17 @@ function PlayerThink()
 
 			playerCount = playerCount * 3 / 2;	// x1.5 of player count
 
-			if(playerCount > 30)	// Upper limit of 30
+			if(playerCount > 20)	// Upper limit of 20
 			{
-				playerCount = 30;
+				playerCount = 20;
 			}
 
 			if(playerCount > KillLimit)
 			{
 				KillLimit = playerCount;
 			}
+
+			SetPlayerGameText(self, gameText);
 		}
 
 		local name1 = place1 == null ? "N/A" : NetProps.GetPropString(place1, "m_szNetname");
@@ -502,8 +529,8 @@ function PlayerThink()
 		local name3 = place3 == null ? "N/A" : NetProps.GetPropString(place3, "m_szNetname");
 		local score = GetPlayerScore(self);
 
-		NetProps.SetPropString(GameTextEntity, "m_iszMessage", "Playing to " + KillLimit + "\n \n1st: " + name1 + " - " + score1 + "\n2nd: " + name2 + " - " + score2 + "\n3rd: " + name3 + " - " + score3 + "\n \nYou: " + score);
-		EntFireByHandle(GameTextEntity, "Display", "", -1.0, self, self);
+		NetProps.SetPropString(gameText, "m_iszMessage", PLAYINGTO + KillLimit + "\n \n" + FIRST + name1 + " - " + score1 + "\n" + SECOND + name2 + " - " + score2 + "\n" + THIRD + name3 + " - " + score3 + "\n \n" + YOU + score);
+		EntFireByHandle(gameText, "Display", "", -1.0, self, self);
 	}
 
 	LastButtons = buttons;
@@ -518,6 +545,9 @@ function PostInventory()
 		Constants.FHideHUD.HIDEHUD_CLOAK_AND_FEIGN |
 		Constants.FHideHUD.HIDEHUD_PIPES_AND_CHARGE |
 		Constants.FHideHUD.HIDEHUD_TARGET_ID);
+
+	// Some cases where Spy could be cloaked
+	self.RemoveCond(Constants.ETFCond.TF_COND_STEALTHED);
 
 	local size = NetProps.GetPropArraySize(self, "m_hMyWeapons")
 	for(local i = 0; i < size; i++)
@@ -599,7 +629,7 @@ function PostInventory()
 			case Constants.ETFClass.TF_CLASS_MEDIC:
 				classname = "tf_weapon_syringegun_medic";
 				speedChange = 1.5;	// 480 HU
-				healthRegen = 25.0;
+				healthRegen = 50.0;
 				break;
 
 			case Constants.ETFClass.TF_CLASS_SNIPER:
@@ -668,8 +698,7 @@ function OnScriptHook_OnTakeDamage(params)
 	local victim = params.const_entity;
 	if(victim.IsPlayer())
 	{
-		if(params.inflictor.IsValid() &&
-			startswith(params.inflictor.GetClassname(), "prop_phy"))
+		if(params.inflictor.IsValid() && IsProp(params.inflictor))
 		{
 			// Set the attacker as the thrower
 			local attacker = NetProps.GetPropEntity(params.inflictor, "m_hPhysicsAttacker");
@@ -693,14 +722,13 @@ function OnScriptHook_OnTakeDamage(params)
 			params.crit_type = 2;
 
 			if(GetPlayerClass(victim) == Constants.ETFClass.TF_CLASS_DEMOMAN &&
-				params.inflictor.IsValid() &&
-				startswith(params.inflictor.GetClassname(), "prop_phy"))
+				params.inflictor.IsValid() && IsProp(params.inflictor))
 			{
 				local thrower = NetProps.GetPropEntity(params.inflictor, "m_hPhysicsAttacker");
 				if(thrower == null || thrower == victim)
 				{
-					// Demoman's self-damage is 1/40
-					params.damage *= 0.025;
+					// Demoman takes no self-damage
+					params.damage = 0.0;
 					EmitSoundOnClient("Player.ResistanceHeavy", victim);
 				}
 			}
@@ -710,23 +738,33 @@ function OnScriptHook_OnTakeDamage(params)
 			// x5 prop damage
 			params.damage *= 5.0;
 
+			if(params.inflictor.IsValid() && IsProp(params.inflictor))
+			{
+				local thrower = NetProps.GetPropEntity(params.inflictor, "m_hPhysicsAttacker");
+				if(thrower != null)
+				{
+					// No self-damage from own props
+					if(thrower == victim)
+					{
+						params.damage = 0.0;
+					}
+					else if(GetPlayerClass(thrower) == Constants.ETFClass.TF_CLASS_PYRO)
+					{
+						if(GetPlayerClass(victim) != Constants.ETFClass.TF_CLASS_PYRO)
+						{
+							victim.AddCondEx(Constants.ETFCond.TF_COND_GAS, 0.1, thrower);
+						}
+
+						victim.IgnitePlayer();
+					}
+				}
+			}
+
 			if(GetPlayerClass(victim) == Constants.ETFClass.TF_CLASS_HEAVYWEAPONS)
 			{
 				// Heavy damage resistance is 3/4
 				params.damage *= 0.75;
 				EmitSoundOnClient("Player.ResistanceLight", victim);
-			}
-			else if(GetPlayerClass(victim) == Constants.ETFClass.TF_CLASS_SOLDIER &&
-				params.inflictor.IsValid() &&
-				startswith(params.inflictor.GetClassname(), "prop_phy"))
-			{
-				local thrower = NetProps.GetPropEntity(params.inflictor, "m_hPhysicsAttacker");
-				if(thrower == null || thrower == victim)
-				{
-					// Soldier's self-damage is 1/4
-					params.damage *= 0.25;
-					EmitSoundOnClient("Player.ResistanceHeavy", victim);
-				}
 			}
 		}
 	}
@@ -801,7 +839,7 @@ function OnGameEvent_player_spawn(params)
 		player.ValidateScriptScope();
 		player.GetScriptScope().LastButtons <- 0;
 		player.GetScriptScope().HeldProp <- player;
-		player.GetScriptScope().LastFreeze <- player;
+//		player.GetScriptScope().LastFreeze <- player;
 		player.GetScriptScope().RespawnTime <- 0.0;
 		player.GetScriptScope().LastGrabbedBy <- null;
 		AddThinkToEnt(player, "PlayerThink");
@@ -844,7 +882,7 @@ function OnGameEvent_player_death(params)
 				player.GetScriptScope().HeldProp.SetOwner(null);
 			}
 		}
-
+/*
 		if(player.GetScriptScope().LastFreeze.IsValid() && player.GetScriptScope().LastFreeze != player)
 		{
 			// Remove Engineer frozen prop
@@ -852,18 +890,14 @@ function OnGameEvent_player_death(params)
 			NetProps.SetPropInt(player.GetScriptScope().LastFreeze, "m_fEffects", 0);
 			player.GetScriptScope().LastFreeze = player;
 		}
-
+*/
 		player.GetScriptScope().HeldProp = player;
 		player.StopSound("weapons/physcannon/hold_loop.wav");
 
 		local attacker = GetPlayerFromUserID(params.attacker);
 		if(attacker != null && attacker != player && GetRoundState() == Constants.ERoundState.GR_STATE_RND_RUNNING)
 		{
-			if(player.GetTeam() == attacker.GetTeam())
-			{
-				// Same team kills will give -1 frags, fix that here
-				SetPlayerScore(attacker, GetPlayerScore(attacker) + 2);
-			}
+			SetPlayerScore(attacker, GetPlayerScore(attacker) + 1);
 
 			// Respawn quickly when not a self-death
 			player.GetScriptScope().RespawnTime = Time() + 1.0;
@@ -939,20 +973,20 @@ function RequestFrame(entity, func)
 
 function IsProp(entity)
 {
-	return startswith(entity.GetClassname(), "prop_phy");
-}
-
-function IsNonProp(entity)
-{
+	// Has m_hPhysicsAttacker
 	return startswith(entity.GetClassname(), "func_physbox") ||
-		startswith(entity.GetClassname(), "prop_vehicle") ||
+		startswith(entity.GetClassname(), "func_pushable") ||
+		startswith(entity.GetClassname(), "physics_cannister") ||
+		startswith(entity.GetClassname(), "prop_phy") ||
+		startswith(entity.GetClassname(), "prop_ragdoll") ||
 		startswith(entity.GetClassname(), "prop_soccer_ball") ||
-		startswith(entity.GetClassname(), "tf_projectile");
+		startswith(entity.GetClassname(), "prop_sphere") ||
+		startswith(entity.GetClassname(), "prop_vehicle");
 }
 
 function CanPickupProp(entity, reload)
 {
-	if((IsProp(entity) || IsNonProp(entity)) && (reload || !PropHeldByPlayer(entity)))
+	if(IsProp(entity) && (reload || !PropHeldByPlayer(entity)))
 	{
 		return true;
 	}
@@ -992,12 +1026,22 @@ function GetPlayerAccount(player)
 
 function GetPlayerScore(player)
 {
-	return NetProps.GetPropInt(player, "m_iFrags");
+	return player.entindex() in PlayerKills ? PlayerKills[player.entindex()] : 0;
 }
 
 function SetPlayerScore(player, score)
 {
-	NetProps.SetPropInt(player, "m_iFrags", score);
+	PlayerKills[player.entindex()] <- score;
+}
+
+function GetPlayerGameText(player)
+{
+	return player.entindex() in GameTextEntity ? GameTextEntity[player.entindex()] : null;
+}
+
+function SetPlayerGameText(player, entity)
+{
+	GameTextEntity[player.entindex()] <- entity;
 }
 
 function IsInSetup()
