@@ -735,8 +735,8 @@ function OnScriptHook_OnTakeDamage(params)
 		}
 		else if(params.damage_type & Constants.FDmgType.DMG_CRUSH)
 		{
-			// x5 prop damage
-			params.damage *= 5.0;
+			// x10 prop damage
+			params.damage *= 10.0;
 
 			if(params.inflictor.IsValid() && IsProp(params.inflictor))
 			{
@@ -747,6 +747,12 @@ function OnScriptHook_OnTakeDamage(params)
 					if(thrower == victim)
 					{
 						params.damage = 0.0;
+					}
+					// Nerf just holding large props
+					else if(PropHeldByPlayer(params.inflictor))
+					{
+						if(params.damage > 10.0)
+							params.damage = 10.0;
 					}
 					else if(GetPlayerClass(thrower) == Constants.ETFClass.TF_CLASS_PYRO)
 					{
