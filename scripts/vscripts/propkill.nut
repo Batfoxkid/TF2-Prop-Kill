@@ -751,8 +751,8 @@ function OnScriptHook_OnTakeDamage(params)
 					// Nerf just holding large props
 					else if(PropHeldByPlayer(params.inflictor))
 					{
-						if(params.damage > 10.0)
-							params.damage = 10.0;
+						if(params.damage > 5.0)
+							params.damage = 5.0;
 					}
 					else if(GetPlayerClass(thrower) == Constants.ETFClass.TF_CLASS_PYRO)
 					{
@@ -913,11 +913,20 @@ function OnGameEvent_player_death(params)
 	}
 }
 
+function OnGameEvent_tf_game_over(params)
+{
+	local player = GetPlayerFromUserID(params.userid);
+	if(player != null)
+	{
+		RequestFrame(player, "PostInventory");
+	}
+}
+
 __CollectGameEventCallbacks(this);
 
 function CheckGameScore()
 {
-	if(IsInSetup() || IsInWaitingForPlayers() || GetRoundState() == Constants.ERoundState.GR_STATE_TEAM_WIN)
+	if(IsInSetup() || IsInWaitingForPlayers() || GetRoundState() == Constants.ERoundState.GR_STATE_TEAM_WIN || GetRoundState() == Constants.ERoundState.GR_STATE_GAME_OVER)
 		return;
 
 	local winner = null;
