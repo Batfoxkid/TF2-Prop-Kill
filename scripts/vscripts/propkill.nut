@@ -1,5 +1,5 @@
 /*
-	Prop Kill DM-Beta Build by Batfoxkid
+	Prop Kill DM 2/17 Build by Batfoxkid
 	Gravity Gun edits by ficool2
 
 	Map Requirements:
@@ -143,12 +143,6 @@ function PlayerThink()
 		{
 			if(attack2)	// Drop Prop
 			{
-/*
-				if(IsProp(HeldProp))
-				{
-					NetProps.SetPropEntity(HeldProp, "m_hPhysicsAttacker", null);
-				}
-*/
 				if(!HeldProp.IsPlayer())
 				{
 					if(HeldProp.GetOwner() == self)
@@ -173,15 +167,6 @@ function PlayerThink()
 		}
 		else
 		{
-/*
-			if(!reload && LastFreeze.IsValid() && LastFreeze != self)
-			{
-				// Remove Engineer frozen prop
-				EntFireByHandle(LastFreeze, "EnableMotion", "", -1.0, self, self);
-				NetProps.SetPropInt(LastFreeze, "m_fEffects", 0);
-				LastFreeze = self;
-			}
-*/
 			local trace =
 			{
 				start = self.EyePosition(),
@@ -210,57 +195,61 @@ function PlayerThink()
 
 			if(trace.hit && CanPickupProp(trace.enthit, reload))
 			{
-				if(trace.enthit.IsPlayer())
+				// If "Prevent pickup" flag is enabled, don't allow holding
+				if(!attack2 || !(NetProps.GetPropInt(trace.enthit, "m_spawnflags") & 512))
 				{
-					trace.enthit.ValidateScriptScope();
-					trace.enthit.GetScriptScope().LastGrabbedBy = self;
-				}
-				else
-				{
-					EntFireByHandle(trace.enthit, "EnableMotion", "", -1.0, self, self);
-					NetProps.SetPropInt(trace.enthit, "m_fEffects", 0);
-
-					if(IsProp(trace.enthit))
+					if(trace.enthit.IsPlayer())
 					{
-						NetProps.SetPropEntity(trace.enthit, "m_hPhysicsAttacker", self);
+						trace.enthit.ValidateScriptScope();
+						trace.enthit.GetScriptScope().LastGrabbedBy = self;
+					}
+					else
+					{
+						EntFireByHandle(trace.enthit, "EnableMotion", "", -1.0, self, self);
+						NetProps.SetPropInt(trace.enthit, "m_fEffects", 0);
+
+						if(IsProp(trace.enthit))
+						{
+							NetProps.SetPropEntity(trace.enthit, "m_hPhysicsAttacker", self);
+						}
+
+						if(attack2 &&
+							GetPlayerClass(self) == Constants.ETFClass.TF_CLASS_SPY &&
+							trace.enthit.GetOwner() == null)
+						{
+							// Spy can go through holidng props
+							trace.enthit.SetOwner(self);
+						}
 					}
 
-					if(attack2 &&
-						GetPlayerClass(self) == Constants.ETFClass.TF_CLASS_SPY &&
-						trace.enthit.GetOwner() == null)
+					if(attack2)
 					{
-						// Spy can go through holidng props
-						trace.enthit.SetOwner(self);
-					}
-				}
+						EmitSoundEx(
+						{
+							sound_name = "weapons/physcannon/physcannon_pickup.wav",
+							channel = 6,
+							sound_level = 80,
+							entity = self
+						});
 
-				if(attack2)
-				{
-					EmitSoundEx(
-					{
-						sound_name = "weapons/physcannon/physcannon_pickup.wav",
-						channel = 6,
-						sound_level = 80,
-						entity = self
-					});
-
-					// TODO: Call OnPlayerPickup, etc.
-				}
-
-				if(reload)	// Zap Prop
-				{
-					if(GetPlayerClass(self) == Constants.ETFClass.TF_CLASS_PYRO)
-					{
-						// Pyro ignites props
-						EntFireByHandle(trace.enthit, "Ignite", "", -1.0, self, self);
+						// TODO: Call OnPlayerPickup, etc.
 					}
 
-					trace.enthit.TakeDamage(1000.0, 0, self);	// TODO: Fix prop gibs
-					EmitSoundOn("Breakable.Computer", self);
-				}
-				else
-				{
-					HeldProp = trace.enthit;
+					if(reload)	// Zap Prop
+					{
+						if(GetPlayerClass(self) == Constants.ETFClass.TF_CLASS_PYRO)
+						{
+							// Pyro ignites props
+							EntFireByHandle(trace.enthit, "Ignite", "", -1.0, self, self);
+						}
+
+						trace.enthit.TakeDamage(1000.0, 0, self);	// TODO: Fix prop gibs
+						EmitSoundOn("Breakable.Computer", self);
+					}
+					else
+					{
+						HeldProp = trace.enthit;
+					}
 				}
 			}
 			else if(reload)
@@ -287,7 +276,6 @@ function PlayerThink()
 				(buttons & (Constants.FButtons.IN_RELOAD|Constants.FButtons.IN_ATTACK3)))
 			{
 				// Engineer freezes props if holding reload/attack3
-//				LastFreeze = HeldProp;
 				EntFireByHandle(HeldProp, "DisableMotion", "", -1.0, self, self);
 				NetProps.SetPropInt(HeldProp, "m_fEffects", Constants.FEntityEffects.EF_ITEM_BLINK);
 				self.StopSound("weapons/physcannon/physcannon_pickup.wav");
@@ -656,6 +644,7 @@ function PostInventory()
 		weapon.AddAttribute("move speed bonus", speedChange, -1.0);
 		weapon.AddAttribute("health drain medic", healthRegen, -1.0);
 		weapon.AddAttribute("cancel falling damage", 1.0, -1.0);
+		weapon.AddAttribute("dmg taken from fire reduced", 0.25, -1.0);
 
 		NetProps.SetPropInt(weapon, "m_iWorldModelIndex", GravityGunWorldmodel);
 
@@ -845,7 +834,6 @@ function OnGameEvent_player_spawn(params)
 		player.ValidateScriptScope();
 		player.GetScriptScope().LastButtons <- 0;
 		player.GetScriptScope().HeldProp <- player;
-//		player.GetScriptScope().LastFreeze <- player;
 		player.GetScriptScope().RespawnTime <- 0.0;
 		player.GetScriptScope().LastGrabbedBy <- null;
 		AddThinkToEnt(player, "PlayerThink");
@@ -871,13 +859,6 @@ function OnGameEvent_player_death(params)
 	local player = GetPlayerFromUserID(params.userid);
 	if(player != null)
 	{
-		// Hide all the elements we don't want
-		//player.AddHudHideFlags(Constants.FHideHUD.HIDEHUD_WEAPONSELECTION |
-		//	Constants.FHideHUD.HIDEHUD_BUILDING_STATUS |
-		//	Constants.FHideHUD.HIDEHUD_CLOAK_AND_FEIGN |
-		//	Constants.FHideHUD.HIDEHUD_PIPES_AND_CHARGE |
-		//	Constants.FHideHUD.HIDEHUD_METAL);
-
 		player.ValidateScriptScope();
 
 		if(!player.GetScriptScope().HeldProp.IsPlayer())
@@ -888,15 +869,7 @@ function OnGameEvent_player_death(params)
 				player.GetScriptScope().HeldProp.SetOwner(null);
 			}
 		}
-/*
-		if(player.GetScriptScope().LastFreeze.IsValid() && player.GetScriptScope().LastFreeze != player)
-		{
-			// Remove Engineer frozen prop
-			EntFireByHandle(player.GetScriptScope().LastFreeze, "EnableMotion", "", -1.0, player, player);
-			NetProps.SetPropInt(player.GetScriptScope().LastFreeze, "m_fEffects", 0);
-			player.GetScriptScope().LastFreeze = player;
-		}
-*/
+
 		player.GetScriptScope().HeldProp = player;
 		player.StopSound("weapons/physcannon/hold_loop.wav");
 
